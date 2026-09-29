@@ -1,0 +1,38 @@
+# Example file. Copy it to unity-catalog-groups.yaml and fill in your values.
+#
+# Unity Catalog / workspace Entra ID groups. Empty members skips creating
+# that group. Add a new group by adding a new key here — no code change
+# needed anywhere (module or terragrunt).
+#
+# REQUIRED, SENSITIVE: members are user principal names (UPNs) from YOUR
+# Entra ID tenant. Find a UPN with:
+#   az ad user show --id <email> --query userPrincipalName -o tsv
+# CHANGE-ME: display_name - match your group naming convention.
+
+groups:
+  # Owns the catalog/metastore: grant/revoke privileges, alter, drop.
+  catalog_owners:
+    display_name: aad-databricks-prd-alphaai-uc-owners
+    members:
+      - "owner@contoso.com"
+
+  # ADMIN workspace permission + ALL_PRIVILEGES on the catalog.
+  workspace_admins:
+    display_name: aad-databricks-prd-alphaai-admins
+    members:
+      - "admin@contoso.com"
+
+  # USER workspace permission + USE_CATALOG/USE_SCHEMA/SELECT (read-only).
+  workspace_users:
+    display_name: aad-databricks-prd-alphaai-users
+    members:
+      - "reader@contoso.com"
+
+  # Delegated metastore admin — to be assigned as the metastore's admin
+  # (databricks_metastore account_admin) in place of an individual user.
+  # No env/project in the name: the metastore is regional and shared across
+  # every environment and project workspace in this region, not just this one.
+  metastore_admins:
+    display_name: aad-databricks-eus-metastore-admins
+    members:
+      - "owner@contoso.com"

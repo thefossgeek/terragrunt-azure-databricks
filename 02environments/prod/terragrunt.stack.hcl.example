@@ -1,0 +1,474 @@
+# -----------------------------------------------------------------------------
+# Example file. Copy it to terragrunt.stack.hcl in this folder:
+#   cp terragrunt.stack.hcl.example terragrunt.stack.hcl
+#
+# Subscription, tenant and naming values come from root.hcl - set those first.
+# In this file, change every value marked  # REQUIRED  and review  # CHANGE-ME.
+# Resource names follow <type>-<location_code>-<environment>-<project>-<instance>;
+# rename them to match your own convention.
+#
+# terragrunt.stack.hcl is git-ignored. Never commit it.
+# -----------------------------------------------------------------------------
+
+locals {
+  env = read_terragrunt_config("${get_terragrunt_dir()}/root.hcl")
+
+  common = {
+    subscription_id = local.env.locals.subscription_id
+    tenant_id       = local.env.locals.tenant_id
+    location        = local.env.locals.location
+    location_code   = local.env.locals.location_code
+    environment     = local.env.locals.environment
+    tags            = local.env.locals.tags
+    project         = local.env.locals.project
+    instance        = local.env.locals.instance
+
+    hub_subscription_id   = local.env.locals.hub_subscription_id
+    databricks_account_id = local.env.locals.databricks_account_id
+    tf_contrib_group_id   = local.env.locals.tf_contrib_group_id
+  }
+
+  # Shared mock output shapes reused across autoinclude blocks — one key per
+  # producing unit, so consumers only look up the key they need. Kept in a
+  # data file since it's static fixture data, not stack logic.
+  mocks = yamldecode(file("${get_terragrunt_dir()}/config/mocks.yaml"))
+}
+
+unit "01resource-groups" {
+  source = "${get_repo_root()}/units/resource-groups"
+  path   = "01resource-groups"
+
+  values = merge(local.common, {
+    resource_groups = {
+       network       = { name = "rg-eus-prd-alphaai-network-001" }
+       databricks    = { name = "rg-eus-prd-alphaai-adb-001" }
+       monitoring    = { name = "rg-eus-prd-alphaai-monitoring-001" }
+    }
+  })
+}
+
+unit "02vnet" {
+  source = "${get_repo_root()}/units/vnet"
+  path   = "02vnet"
+
+  autoinclude {
+    dependency "resource_groups" {
+      config_path = unit["01resource-groups"].path
+
+      mock_outputs = {
+        resource_groups = {
+          network = { name = "mock-rg", id = "mock-id" }
+        }
+      }
+      mock_outputs_allowed_terraform_commands = ["validate", "plan"]
+    }
+  }
+
+  # CHANGE-ME: VNet and subnet ranges. Must not overlap with the hub VNet
+  # (10.60.0.0/16 in hub's example) or any network you peer with.
+  values = merge(local.common, {
+    address_space = ["10.50.0.0/16"]
+
+    subnets = {
+      private-endpoints = {
+        address_prefixes                              = ["10.50.3.0/24"]
+        private_endpoint_network_policies              = "Disabled"
+        private_link_service_network_policies_enabled = false
+      }
+      databricks-public = {
+        address_prefixes = ["10.50.1.0/24"]
+        delegation = {
+          name         = "databricks-delegation"
+          service_name = "Microsoft.Databricks/workspaces"
+          actions = [
+            "Microsoft.Network/virtualNetworks/subnets/join/action",
+            "Microsoft.Network/virtualNetworks/subnets/prepareNetworkPolicies/action",
+            "Microsoft.Network/virtualNetworks/subnets/unprepareNetworkPolicies/action",
+          ]
+        }
+      }
+      databricks-private = {
+        address_prefixes = ["10.50.2.0/24"]
+        delegation = {
+          name         = "databricks-delegation"
+          service_name = "Microsoft.Databricks/workspaces"
+          actions = [
+            "Microsoft.Network/virtualNetworks/subnets/join/action",
+            "Microsoft.Network/virtualNetworks/subnets/prepareNetworkPolicies/action",
+            "Microsoft.Network/virtualNetworks/subnets/unprepareNetworkPolicies/action",
+          ]
+        }
+      }
+    }
+
+    # CHANGE-ME: must match inbound_endpoint_private_ip in hub's
+    # terragrunt.stack.hcl (06dns-resolver unit).
+    # Hub's Private DNS Resolver inbound endpoint (02environments/hub's
+    # 06dns-resolver unit) - a known, static platform value, same
+    # convention as 06vnet-peering's destination_vnet_name. This is how
+    # this VNet resolves the hub-centralized private zones (privatelink.*)
+    # WITHOUT ever linking to those zones directly - see
+    # units/vnet-peering/terragrunt.hcl for why that link is deliberately
+    # not created here.
+    dns_servers = ["10.60.6.4"]
+  })
+}
+
+unit "03nsg" {
+  source = "${get_repo_root()}/units/network-security-group"
+  path   = "03nsg"
+
+  autoinclude {
+    dependency "resource_groups" {
+      config_path                             = unit["01resource-groups"].path
+      mock_outputs                            = local.mocks.resource_groups
+      mock_outputs_allowed_terraform_commands = ["validate", "plan"]
+    }
+    dependency "vnet" {
+      config_path                             = unit["02vnet"].path
+      mock_outputs                            = local.mocks.vnet
+      mock_outputs_allowed_terraform_commands = ["validate", "plan"]
+    }
+  }
+
+  values = merge(local.common, {
+    nsg_rules_files = {
+      databricks-public  = "nsg-databricks-public.yaml"
+      databricks-private = "nsg-databricks-private.yaml"
+      private-endpoints  = "nsg-private-endpoints.yaml"
+    }
+  })
+}
+
+unit "04route-tables" {
+  source = "${get_repo_root()}/units/route-table"
+  path   = "04route-tables"
+
+  autoinclude {
+    dependency "resource_groups" {
+      config_path                             = unit["01resource-groups"].path
+      mock_outputs                            = local.mocks.resource_groups
+      mock_outputs_allowed_terraform_commands = ["validate", "plan"]
+    }
+    dependency "vnet" {
+      config_path                             = unit["02vnet"].path
+      mock_outputs                            = local.mocks.vnet
+      mock_outputs_allowed_terraform_commands = ["validate", "plan"]
+    }
+  }
+
+  # Off by default: this test tenant has no firewall at the hub. When
+  # deploying to a client tenant with a firewall at the hub (e.g. Fortigate),
+  # set enable_firewall_egress = true and firewall_private_ip to its internal
+  # interface IP.
+  values = merge(local.common, {
+    route_table_subnet_keys = ["databricks-public", "databricks-private", "private-endpoints"]
+    enable_firewall_egress  = false
+    firewall_private_ip     = null
+  })
+}
+
+unit "05log-analytics" {
+  source = "${get_repo_root()}/units/log-analytics-workspace"
+  path   = "05log-analytics"
+
+  autoinclude {
+    dependency "resource_groups" {
+      config_path                             = unit["01resource-groups"].path
+      mock_outputs                            = local.mocks.resource_groups
+      mock_outputs_allowed_terraform_commands = ["validate", "plan"]
+    }
+  }
+
+  values = merge(local.common, {
+    name = "law-eus-prd-alphaai-001"
+
+    retention_in_days = 90
+    daily_quota_gb    = -1
+  })
+}
+
+unit "06vnet-peering" {
+  source = "${get_repo_root()}/units/vnet-peering"
+  path   = "06vnet-peering"
+
+  autoinclude {
+    dependency "source" {
+      config_path                             = unit["02vnet"].path
+      mock_outputs                            = local.mocks.vnet
+      mock_outputs_allowed_terraform_commands = ["validate", "plan"]
+    }
+
+    dependency "resource_groups" {
+      config_path                             = unit["01resource-groups"].path
+      mock_outputs                            = local.mocks.resource_groups
+      mock_outputs_allowed_terraform_commands = ["validate", "plan"]
+    }
+
+    # Cross-stack: the hub's private DNS zones live in a separate
+    # stack/state (02environments/hub), not this one, per the centralized
+    # single-source-of-truth design - see units/private-dns-zone/terragrunt.hcl.
+    # Requires `terragrunt stack generate` to have been run at least once
+    # in 02environments/hub so this path exists locally.
+    dependency "dns_zones" {
+      config_path                             = "${get_repo_root()}/02environments/hub/.terragrunt-stack/03private-dns-zones"
+      mock_outputs                            = local.mocks.dns_zones
+      mock_outputs_allowed_terraform_commands = ["validate", "plan"]
+    }
+  }
+
+  # Hub is treated as external/unmanaged from this stack's point of view
+  # (looked up by name, not via cross-stack state) - realistic for a real
+  # landing zone, where the hub is typically owned by a platform team in
+  # its own subscription. In this repo hub and prod currently share a
+  # subscription (free-tier constraint), but hub_subscription_id/
+  # destination_subscription_id already point at the real value, so this
+  # works unchanged once hub moves to its own subscription.
+  # CHANGE-ME: names of the hub VNet and its resource group, as created by
+  # 02environments/hub.
+  values = merge(local.common, {
+    destination_vnet_name           = "vnet-eus-hub-alphaai-001"
+    destination_resource_group_name = "rg-eus-hub-alphaai-network-001"
+
+    allow_forwarded_traffic = true
+    allow_gateway_transit   = false
+    use_remote_gateways     = false
+  })
+}
+
+unit "07-unity-catalog-groups" {
+  source = "${get_repo_root()}/units/unity-catalog-groups"
+  path   = "07-unity-catalog-groups"
+
+  values = local.common
+}
+
+unit "08databricks" {
+  source = "${get_repo_root()}/units/databricks"
+  path   = "08databricks"
+
+  autoinclude {
+    dependency "resource_groups" {
+      config_path                             = unit["01resource-groups"].path
+      mock_outputs                            = local.mocks.resource_groups
+      mock_outputs_allowed_terraform_commands = ["validate", "plan"]
+    }
+
+    dependency "vnet" {
+      config_path                             = unit["02vnet"].path
+      mock_outputs                            = local.mocks.vnet
+      mock_outputs_allowed_terraform_commands = ["validate", "plan"]
+    }
+
+    dependency "nsg" {
+      config_path                             = unit["03nsg"].path
+      mock_outputs                            = local.mocks.nsg
+      mock_outputs_allowed_terraform_commands = ["validate", "plan"]
+    }
+
+    # Cross-stack: same reasoning/path as 06vnet-peering's dns_zones
+    # dependency - the hub's private DNS zones live in a separate
+    # stack/state (02environments/hub), not this one. Required here: the
+    # module's private endpoints register their DNS records into these
+    # central zones via private_dns_zone_group - that's a normal, correct
+    # use of the centralized zones (distinct from a VNet link, which this
+    # stack still never creates - see units/vnet-peering/terragrunt.hcl).
+    dependency "dns_zones" {
+      config_path                             = "${get_repo_root()}/02environments/hub/.terragrunt-stack/03private-dns-zones"
+      mock_outputs                            = local.mocks.dns_zones
+      mock_outputs_allowed_terraform_commands = ["validate", "plan"]
+    }
+
+    dependency "log_analytics" {
+      config_path                             = unit["05log-analytics"].path
+      mock_outputs                            = local.mocks.log_analytics
+      mock_outputs_allowed_terraform_commands = ["validate", "plan"]
+    }
+  }
+
+  values = merge(local.common, {
+    name                        = "dbw-eus-prd-alphaai-001"
+    managed_resource_group_name = "rg-eus-prd-alphaai-dbx-managed-001"
+    access_connector_name       = "ac-eus-prd-alphaai-001"
+
+    # REQUIRED: storage account and Key Vault names are GLOBALLY unique across
+    # Azure - change these or the apply fails. Storage accounts: 3-24
+    # lowercase letters and digits. Key Vault: 3-24 letters, digits, hyphens.
+    storage_account_name              = "saeusprdexampledata001"
+    managed_dbfs_storage_account_name = "saeusprdexampledbfs001"
+    key_vault_name                    = "kv-eus-prd-example-001"
+
+    # REQUIRED, SENSITIVE: email address that receives platform alerts.
+    alert_email = "platform-alerts@contoso.com"
+
+    sku                              = "premium"
+    managed_dbfs_storage_sku_name    = "Standard_ZRS"
+    enable_dbfs_storage_firewall     = true
+    storage_account_replication_type = "ZRS"
+    storage_containers               = ["raw", "curated"]
+
+    # Enhanced Security & Compliance Add-On. WARNING:
+    # compliance_security_profile_enabled is PERMANENT once applied — cannot
+    # be disabled without destroying and recreating the workspace.
+    compliance_security_profile_enabled   = true
+    compliance_security_profile_standards = []
+    enhanced_security_monitoring_enabled  = true
+    automatic_cluster_update_enabled      = true
+
+    reader_group_name      = "aad-databricks-eus-alphaai-readers"
+    contributor_group_name = "aad-databricks-eus-alphaai-contributors"
+  })
+}
+
+unit "09unity-catalog" {
+  source = "${get_repo_root()}/units/unity-catalog"
+  path   = "09unity-catalog"
+
+  autoinclude {
+    dependency "resource_groups" {
+      config_path                             = unit["01resource-groups"].path
+      mock_outputs                            = local.mocks.resource_groups
+      mock_outputs_allowed_terraform_commands = ["validate", "plan"]
+    }
+
+    dependency "vnet" {
+      config_path                             = unit["02vnet"].path
+      mock_outputs                            = local.mocks.vnet
+      mock_outputs_allowed_terraform_commands = ["validate", "plan"]
+    }
+
+    # Cross-stack: same reasoning/path as 06vnet-peering's and 08databricks's
+    # dns_zones dependency - the hub's private DNS zones live in a separate
+    # stack/state (02environments/hub), not this one. There's no local
+    # "05dns-zones" unit in this stack to depend on.
+    dependency "dns_zones" {
+      config_path                             = "${get_repo_root()}/02environments/hub/.terragrunt-stack/03private-dns-zones"
+      mock_outputs                            = local.mocks.dns_zones
+      mock_outputs_allowed_terraform_commands = ["validate", "plan"]
+    }
+
+    dependency "databricks" {
+      config_path                             = unit["08databricks"].path
+      mock_outputs                            = local.mocks.databricks
+      mock_outputs_allowed_terraform_commands = ["validate", "plan"]
+    }
+
+    dependency "unity_catalog_groups" {
+      config_path                             = unit["07-unity-catalog-groups"].path
+      mock_outputs                            = local.mocks.unity_catalog_groups
+      mock_outputs_allowed_terraform_commands = ["validate", "plan"]
+    }
+  }
+
+  values = merge(local.common, {
+    resource_suffix         = "uc-eus-prd-alphaai-001"
+    metastore_name          = "metastore-eus-001"
+    storage_container_name  = "unitycatalog"
+    data_storage_containers = ["raw", "curated"]
+
+    # Only one metastore is allowed per region — every environment/project
+    # workspace deployed into eastus shares it and separates itself via an
+    # isolated catalog instead (see modules/unity-catalog/02-metastore.tf).
+    # This is prod's own catalog.
+    catalog_name           = "prd"
+    catalog_isolation_mode = "ISOLATED"
+    is_default_namespace   = true
+    force_destroy          = false
+    # ZRS: prod's own metastore-root storage account only needs zone HA, no
+    # DR geo-replication.
+    storage_account_replication_type = "ZRS"
+
+    enable_workspace_hardening         = true
+    create_network_connectivity_config = true
+  })
+}
+
+unit "10unity-catalog-access" {
+  source = "${get_repo_root()}/units/unity-catalog-access"
+  path   = "10unity-catalog-access"
+
+  autoinclude {
+    dependency "databricks" {
+      config_path                             = unit["08databricks"].path
+      mock_outputs                            = local.mocks.databricks
+      mock_outputs_allowed_terraform_commands = ["validate", "plan"]
+    }
+
+    dependency "unity_catalog" {
+      config_path                             = unit["09unity-catalog"].path
+      mock_outputs                            = local.mocks.unity_catalog
+      mock_outputs_allowed_terraform_commands = ["validate", "plan"]
+    }
+
+    dependency "unity_catalog_groups" {
+      config_path                             = unit["07-unity-catalog-groups"].path
+      mock_outputs                            = local.mocks.unity_catalog_groups
+      mock_outputs_allowed_terraform_commands = ["validate", "plan"]
+    }
+  }
+
+  values = local.common
+}
+
+unit "11-account-ip-access-list" {
+  source = "${get_repo_root()}/units/account-ip-access-list"
+  path   = "11-account-ip-access-list"
+
+  # Account-level, not tied to any Azure resource in this stack - lives here
+  # (not hub) because the account-level "databricks.account" provider alias
+  # (and databricks_account_id) is only generated in this stack's root.hcl.
+  values = merge(local.common, {
+    # TODO: left disabled (FULL_ACCESS) until allow_rules below has real
+    # trusted CIDRs in it - enabling with an empty/wrong allow list locks
+    # every account admin out of the account console with no in-product
+    # break-glass. Fill in allow_rules, confirm the plan looks right, THEN
+    # flip this to true.
+    enabled = false
+
+    allow_rules = {
+      # example key = {
+      #   label        = "office-network"
+      #   ip_addresses = ["203.0.113.0/24"]
+      # }
+    }
+
+    block_rules = {}
+  })
+}
+
+unit "12-workspace-ip-access-list" {
+  source = "${get_repo_root()}/units/workspace-ip-access-list"
+  path   = "12-workspace-ip-access-list"
+
+  autoinclude {
+    dependency "databricks" {
+      config_path                             = unit["08databricks"].path
+      mock_outputs                            = local.mocks.databricks
+      mock_outputs_allowed_terraform_commands = ["validate", "plan"]
+    }
+  }
+
+  # DISABLED 2026-09-22 after a real lockout: enabling this with allow_rules
+  # = 10.60.1.0/24 (the hub connector's subnet) assumed WARP-tunneled traffic
+  # reaches Databricks looking like it originated from the connector's own
+  # IP. It doesn't - confirmed live: WARP connected, DNS correctly resolving
+  # the workspace hostname to its private endpoint IP, and Databricks still
+  # denied the request as an unrecognized source IP. cloudflared's
+  # warp-routing evidently forwards packets with something else as the
+  # source (most likely the WARP client's own Cloudflare-assigned virtual
+  # IP, not the connector's), so this rule never actually matched real
+  # traffic for anyone. It also disproved the original premise below that an
+  # IP access list has "nothing to filter" on the private-endpoint path -
+  # it demonstrably does filter it, and blocks it.
+  #
+  # Left off (enabled = false, no rules) until the real source IP/range for
+  # WARP-tunneled traffic is confirmed from Databricks' own audit logs (the
+  # denied-request log entry shows the literal source IP Databricks saw) -
+  # do not re-enable with a guessed CIDR.
+  values = merge(local.common, {
+    enabled = false
+
+    allow_rules = {}
+    block_rules = {}
+  })
+}

@@ -1,0 +1,264 @@
+# -----------------------------------------------------------------------------
+# Example file. Copy it to terragrunt.stack.hcl in this folder:
+#   cp terragrunt.stack.hcl.example terragrunt.stack.hcl
+#
+# Subscription, tenant and naming values come from root.hcl - set those first.
+# In this file, change every value marked  # REQUIRED  and review  # CHANGE-ME.
+# Resource names follow <type>-<location_code>-<environment>-<project>-<instance>;
+# rename them to match your own convention.
+#
+# terragrunt.stack.hcl is git-ignored. Never commit it.
+# -----------------------------------------------------------------------------
+
+locals {
+  env = read_terragrunt_config("${get_terragrunt_dir()}/root.hcl")
+
+  common = {
+    subscription_id = local.env.locals.subscription_id
+    tenant_id       = local.env.locals.tenant_id
+    location        = local.env.locals.location
+    location_code   = local.env.locals.location_code
+    environment     = local.env.locals.environment
+    tags            = local.env.locals.tags
+    project         = local.env.locals.project
+    instance        = local.env.locals.instance
+  }
+
+  # Shared mock output shapes reused across autoinclude blocks — same
+  # convention as 02environments/prod/terragrunt.stack.hcl.
+  mocks = yamldecode(file("${get_terragrunt_dir()}/config/mocks.yaml"))
+}
+
+unit "01resource-groups" {
+  source = "${get_repo_root()}/units/resource-groups"
+  path   = "01resource-groups"
+
+  values = merge(local.common, {
+    resource_groups = {
+      network = { name = "rg-eus-hub-alphaai-network-001" }
+    }
+  })
+}
+
+unit "02vnet" {
+  source = "${get_repo_root()}/units/vnet"
+  path   = "02vnet"
+
+  autoinclude {
+    dependency "resource_groups" {
+      config_path = unit["01resource-groups"].path
+
+      mock_outputs = {
+        resource_groups = {
+          network = { name = "mock-rg", id = "mock-id" }
+        }
+      }
+      mock_outputs_allowed_terraform_commands = ["validate", "plan"]
+    }
+  }
+
+  # CHANGE-ME: VNet and subnet ranges.
+  # 10.60.0.0/16 - distinct from prod's 10.50.0.0/16 so the two can be
+  # peered later without an address-space collision.
+  values = merge(local.common, {
+    address_space = ["10.60.0.0/16"]
+
+    subnets = {
+      cloudflare-zero-trust = {
+        address_prefixes = ["10.60.1.0/24"]
+      }
+
+      # Dedicated to the Private DNS Resolver inbound endpoint. Azure
+      # requires this subnet delegated, >= /28, and carrying no other
+      # resources - never add this key to 04nsg/05route-tables' maps.
+      dns-resolver-inbound = {
+        address_prefixes = ["10.60.6.0/28"]
+        delegation = {
+          name         = "dns-resolver-delegation"
+          service_name = "Microsoft.Network/dnsResolvers"
+          actions = [
+            "Microsoft.Network/virtualNetworks/subnets/join/action",
+          ]
+        }
+      }
+    }
+  })
+}
+
+unit "04nsg" {
+  source = "${get_repo_root()}/units/network-security-group"
+  path   = "04nsg"
+
+  autoinclude {
+    dependency "resource_groups" {
+      config_path                             = unit["01resource-groups"].path
+      mock_outputs                            = local.mocks.resource_groups
+      mock_outputs_allowed_terraform_commands = ["validate", "plan"]
+    }
+    dependency "vnet" {
+      config_path                             = unit["02vnet"].path
+      mock_outputs                            = local.mocks.vnet
+      mock_outputs_allowed_terraform_commands = ["validate", "plan"]
+    }
+  }
+
+  values = merge(local.common, {
+    nsg_rules_files = {
+      cloudflare-zero-trust = "nsg-cloudflare-zero-trust.yaml"
+    }
+  })
+}
+
+unit "05route-tables" {
+  source = "${get_repo_root()}/units/route-table"
+  path   = "05route-tables"
+
+  autoinclude {
+    dependency "resource_groups" {
+      config_path                             = unit["01resource-groups"].path
+      mock_outputs                            = local.mocks.resource_groups
+      mock_outputs_allowed_terraform_commands = ["validate", "plan"]
+    }
+    dependency "vnet" {
+      config_path                             = unit["02vnet"].path
+      mock_outputs                            = local.mocks.vnet
+      mock_outputs_allowed_terraform_commands = ["validate", "plan"]
+    }
+  }
+
+  # Off by default: no firewall at this hub in this test tenant. Set
+  # enable_firewall_egress = true and firewall_private_ip once one exists.
+  values = merge(local.common, {
+    route_table_subnet_keys = ["cloudflare-zero-trust"]
+    enable_firewall_egress  = false
+    firewall_private_ip     = null
+  })
+}
+
+unit "03private-dns-zones" {
+  source = "${get_repo_root()}/units/private-dns-zone"
+  path   = "03private-dns-zones"
+
+  autoinclude {
+    dependency "resource_groups" {
+      config_path                             = unit["01resource-groups"].path
+      mock_outputs                            = local.mocks.resource_groups
+      mock_outputs_allowed_terraform_commands = ["validate", "plan"]
+    }
+    dependency "vnet" {
+      config_path                             = unit["02vnet"].path
+      mock_outputs                            = local.mocks.vnet
+      mock_outputs_allowed_terraform_commands = ["validate", "plan"]
+    }
+  }
+
+  # Single source of truth for every private zone this project needs.
+  # Spokes (e.g. 02environments/prod) must never create or link these
+  # zones themselves - they only read this unit's `zones` output via a
+  # cross-stack dependency when wiring up private endpoints.
+  values = merge(local.common, {
+    zone_names = {
+      storage-blob = "privatelink.blob.core.windows.net"
+      storage-dfs  = "privatelink.dfs.core.windows.net"
+      key-vault    = "privatelink.vaultcore.azure.net"
+      databricks   = "privatelink.azuredatabricks.net"
+    }
+  })
+}
+
+unit "06dns-resolver" {
+  source = "${get_repo_root()}/units/private-dns-resolver"
+  path   = "06dns-resolver"
+
+  autoinclude {
+    dependency "resource_groups" {
+      config_path                             = unit["01resource-groups"].path
+      mock_outputs                            = local.mocks.resource_groups
+      mock_outputs_allowed_terraform_commands = ["validate", "plan"]
+    }
+    dependency "vnet" {
+      config_path                             = unit["02vnet"].path
+      mock_outputs                            = local.mocks.vnet
+      mock_outputs_allowed_terraform_commands = ["validate", "plan"]
+    }
+  }
+
+  # Static, not dynamic: spokes point their VNet's dns_servers at this
+  # fixed address directly (see 02environments/prod/terragrunt.stack.hcl's
+  # 02vnet unit) rather than through a live cross-stack dependency - same
+  # "known platform value" convention already used for
+  # destination_vnet_name/firewall_private_ip. First usable address in
+  # the dns-resolver-inbound subnet (10.60.6.0/28): Azure reserves .0-.3.
+  values = merge(local.common, {
+    inbound_endpoint_private_ip = "10.60.6.4"
+  })
+}
+
+unit "08cloudflare" {
+  source = "${get_repo_root()}/units/cloudflare-zero-trust"
+  path   = "08cloudflare"
+
+  autoinclude {
+    dependency "resource_groups" {
+      config_path                             = unit["01resource-groups"].path
+      mock_outputs                            = local.mocks.resource_groups
+      mock_outputs_allowed_terraform_commands = ["validate", "plan"]
+    }
+    dependency "vnet" {
+      config_path                             = unit["02vnet"].path
+      mock_outputs                            = local.mocks.vnet
+      mock_outputs_allowed_terraform_commands = ["validate", "plan"]
+    }
+  }
+
+  values = merge(local.common, {
+    resource_suffix = "cf-hub-eus-001"
+
+    # ── Cloudflare account context ───────────────────────────────────────────
+    # REQUIRED, SENSITIVE: the only two values this module can't create on its
+    # own. Find them in the Cloudflare dashboard:
+    #   cloudflare_account_id - Account home > Account ID (32 hex characters)
+    #   cloudflare_team_name  - Zero Trust > Settings > Team name
+    #                           (the <team> in <team>.cloudflareaccess.com)
+    # Also export CLOUDFLARE_API_TOKEN before running terragrunt.
+    cloudflare_account_id = "00000000000000000000000000000000"
+    cloudflare_team_name  = "<your-team-name>"
+
+    # Networking (resource_group_name/subnet_id/connector_subnet_prefix) is
+    # read from the 01resource-groups/02vnet dependencies above, in
+    # units/cloudflare-zero-trust/terragrunt.hcl — this module deploys into
+    # the existing "cloudflare-zero-trust" subnet (10.60.1.0/24) rather than
+    # creating its own VNet/subnet.
+
+    # Spoke CIDRs already established elsewhere in this repo. Adding a CIDR
+    # here only creates the Cloudflare-side route — actual VNet peering to
+    # reach it is done manually, per earlier decision. Currently just prod
+    # (02environments/prod's 02vnet unit); add more spokes here as they're
+    # deployed.
+    spoke_cidrs = [
+      "10.50.0.0/16", # 02environments/prod/02vnet
+    ]
+
+    # ── DNS ───────────────────────────────────────────────────────────────────
+    # Domain suffixes WARP routes through the connector's local resolver
+    # instead of Cloudflare's default one — without a suffix listed here,
+    # WARP clients never ask the hub to resolve that hostname. Kept in sync
+    # with the zones actually deployed in 02environments/hub's
+    # 03private-dns-zones unit (storage-blob/storage-dfs, key-vault,
+    # databricks) — a domain with no matching zone here would just fall
+    # through to Cloudflare's public resolver instead of the private IP.
+    private_dns_forward_domains = [
+      "azuredatabricks.net",
+      "core.windows.net",
+      "vault.azure.net",
+    ]
+
+    # ── Access control ──────────────────────────────────────────────────────
+    # REQUIRED, SENSITIVE: Entra ID object IDs of the users/service principals
+    # allowed through Zero Trust, or leave empty and add members to the access
+    # group after apply. Find a user's object ID with:
+    #   az ad user show --id <upn> --query id -o tsv
+    access_group_name    = "zero-trust-private-access"
+    access_group_members = ["00000000-0000-0000-0000-000000000000"]
+  })
+}

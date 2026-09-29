@@ -1,0 +1,68 @@
+# Example file. Copy it to the same name without ".example" and adjust as needed.
+# No sensitive values here - it works as-is.
+
+# NSG rules for the "cloudflare-zero-trust" subnet: outbound-only for the
+# Cloudflare Tunnel (cloudflared) connector - HTTPS + QUIC to Cloudflare's
+# edge, plus platform DNS. No inbound from the internet is needed: the
+# connector only ever makes outbound connections to Cloudflare, which then
+# proxies Zero Trust traffic back over that same outbound tunnel.
+
+- name: allow-cloudflare-tunnel-https
+  priority: 300
+  direction: Outbound
+  access: Allow
+  protocol: Tcp
+  source_port_range: "*"
+  destination_port_range: "443"
+  source_address_prefix: VirtualNetwork
+  destination_address_prefix: Internet
+
+- name: allow-cloudflare-tunnel-quic
+  priority: 310
+  direction: Outbound
+  access: Allow
+  protocol: Udp
+  source_port_range: "*"
+  destination_port_range: "7844"
+  source_address_prefix: VirtualNetwork
+  destination_address_prefix: Internet
+
+- name: allow-azure-platform-dns-tcp
+  priority: 320
+  direction: Outbound
+  access: Allow
+  protocol: Tcp
+  source_port_range: "*"
+  destination_port_range: "53"
+  source_address_prefix: VirtualNetwork
+  destination_address_prefix: "168.63.129.16"
+
+- name: allow-azure-platform-dns-udp
+  priority: 321
+  direction: Outbound
+  access: Allow
+  protocol: Udp
+  source_port_range: "*"
+  destination_port_range: "53"
+  source_address_prefix: VirtualNetwork
+  destination_address_prefix: "168.63.129.16"
+
+- name: deny-inbound-internet
+  priority: 4080
+  direction: Inbound
+  access: Deny
+  protocol: "*"
+  source_port_range: "*"
+  destination_port_range: "*"
+  source_address_prefix: Internet
+  destination_address_prefix: "*"
+
+- name: deny-internet-egress
+  priority: 4090
+  direction: Outbound
+  access: Deny
+  protocol: "*"
+  source_port_range: "*"
+  destination_port_range: "*"
+  source_address_prefix: "*"
+  destination_address_prefix: Internet

@@ -1,0 +1,10 @@
+# Example file. Copy it to databricks-access.yaml and fill in your values.
+#
+# Databricks reader/contributor group members. Empty list skips creating that group.
+#
+# REQUIRED, SENSITIVE: user principal names (UPNs) from YOUR Entra ID tenant.
+# Find a UPN with:  az ad user show --id <email> --query userPrincipalName -o tsv
+reader:
+  - "reader@contoso.com"
+contributor:
+  - "contributor@contoso.com"

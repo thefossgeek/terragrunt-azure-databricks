@@ -1,0 +1,64 @@
+# Example file. Copy it to the same name without ".example" and adjust as needed.
+# No sensitive values here - it works as-is.
+
+# Shared mock output shapes used by autoinclude dependency blocks in
+# terragrunt.stack.hcl so `plan` can succeed against unapplied dependencies.
+# One key per producing unit, reused by every consumer of that unit.
+
+resource_groups:
+  resource_groups:
+    network: { name: mock-rg, id: mock-id }
+    databricks: { name: mock-rg, id: mock-id }
+    monitoring: { name: mock-rg, id: mock-id }
+
+vnet:
+  vnet_id: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/mock-rg/providers/Microsoft.Network/virtualNetworks/mock-vnet"
+  vnet_name: mock-vnet
+  subnets:
+    databricks-public: { id: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/mock-rg/providers/Microsoft.Network/virtualNetworks/mock-vnet/subnets/mock-subnet", name: mock-subnet }
+    databricks-private: { id: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/mock-rg/providers/Microsoft.Network/virtualNetworks/mock-vnet/subnets/mock-subnet", name: mock-subnet }
+    private-endpoints: { id: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/mock-rg/providers/Microsoft.Network/virtualNetworks/mock-vnet/subnets/mock-subnet", name: mock-subnet }
+
+dns_zones:
+  zones:
+    storage-blob: { name: privatelink.blob.core.windows.net, id: &dns_zone_id "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/mock-rg/providers/Microsoft.Network/privateDnsZones/mock-zone" }
+    storage-dfs: { name: privatelink.dfs.core.windows.net, id: *dns_zone_id }
+    key-vault: { name: privatelink.vaultcore.azure.net, id: *dns_zone_id }
+    databricks: { name: privatelink.azuredatabricks.net, id: *dns_zone_id }
+
+log_analytics:
+  id: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/mock-rg/providers/Microsoft.OperationalInsights/workspaces/mock-law"
+
+nsg:
+  subnet_associations:
+    databricks-public: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/mock-rg/providers/Microsoft.Network/virtualNetworks/mock-vnet/subnets/mock-subnet"
+    databricks-private: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/mock-rg/providers/Microsoft.Network/virtualNetworks/mock-vnet/subnets/mock-subnet"
+
+databricks:
+  workspace_url: mock.azuredatabricks.net
+  workspace_numeric_id: "1234567890123456"
+  storage_account_id: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/mock-rg/providers/Microsoft.Storage/storageAccounts/mockstorage"
+  storage_account_name: mockstorage
+  key_vault_id: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/mock-rg/providers/Microsoft.KeyVault/vaults/mock-kv"
+  reader_group_display_name: mock-reader-group
+
+unity_catalog_groups:
+  group_display_names:
+    catalog_owners: mock-catalog-owners
+    workspace_admins: mock-workspace-admins
+    workspace_users: mock-workspace-users
+
+unity_catalog:
+  catalog_name: mock-catalog
+
+acr:
+  id: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/mock-rg/providers/Microsoft.ContainerRegistry/registries/mockacr"
+  login_server: mockacr.azurecr.io
+
+azdo_agent_aca:
+  resource_group_name: mock-rg
+  cae_id: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/mock-rg/providers/Microsoft.App/managedEnvironments/mock-cae"
+  uami_id: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/mock-rg/providers/Microsoft.ManagedIdentity/userAssignedIdentities/mock-uami"
+  uami_client_id: "00000000-0000-0000-0000-000000000000"
+  agent_pool_name: mock-pool
+  agent_pool_id: 1

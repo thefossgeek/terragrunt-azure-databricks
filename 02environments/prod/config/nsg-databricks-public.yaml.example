@@ -1,0 +1,55 @@
+# Example file. Copy it to the same name without ".example" and adjust as needed.
+# No sensitive values here - it works as-is.
+
+# NSG rules for the "databricks-public" subnet: allow outbound to Databricks
+# control plane, storage, SQL, and EventHub, deny all other internet out.
+
+- name: allow-databricks-control-plane
+  priority: 1000
+  direction: Outbound
+  access: Allow
+  protocol: Tcp
+  source_port_range: "*"
+  destination_port_ranges: ["443", "3306", "8443-8451"]
+  source_address_prefix: VirtualNetwork
+  destination_address_prefix: AzureDatabricks
+
+- name: allow-storage
+  priority: 1010
+  direction: Outbound
+  access: Allow
+  protocol: Tcp
+  source_port_range: "*"
+  destination_port_range: "443"
+  source_address_prefix: VirtualNetwork
+  destination_address_prefix: Storage
+
+- name: allow-sql
+  priority: 1020
+  direction: Outbound
+  access: Allow
+  protocol: Tcp
+  source_port_range: "*"
+  destination_port_range: "443"
+  source_address_prefix: VirtualNetwork
+  destination_address_prefix: Sql
+
+- name: allow-eventhub
+  priority: 1030
+  direction: Outbound
+  access: Allow
+  protocol: Tcp
+  source_port_range: "*"
+  destination_port_range: "443"
+  source_address_prefix: VirtualNetwork
+  destination_address_prefix: EventHub
+
+- name: deny-internet-egress
+  priority: 4090
+  direction: Outbound
+  access: Deny
+  protocol: "*"
+  source_port_range: "*"
+  destination_port_range: "*"
+  source_address_prefix: "*"
+  destination_address_prefix: Internet

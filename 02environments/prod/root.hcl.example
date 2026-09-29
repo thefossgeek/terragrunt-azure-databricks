@@ -1,0 +1,182 @@
+# -----------------------------------------------------------------------------
+# Example file. Copy it to root.hcl in this folder and fill in your values:
+#   cp root.hcl.example root.hcl
+#
+#   # REQUIRED   you must change it
+#   # CHANGE-ME  works as-is, but should match your naming / organisation
+#   # SENSITIVE  identifies your tenant or people - keep out of public repos
+#
+# root.hcl is git-ignored. Never commit it.
+# -----------------------------------------------------------------------------
+
+terragrunt_version_constraint = ">= 1.1.1" # required for autoinclude blocks
+
+locals {
+
+  # REQUIRED, SENSITIVE: subscription this environment deploys into, and its
+  # Entra ID tenant. Find them with:
+  #   az account show --query "{subscription_id:id, tenant_id:tenantId}" -o table
+  subscription_id = "00000000-0000-0000-0000-000000000000"
+  tenant_id       = "00000000-0000-0000-0000-000000000000"
+
+  # REQUIRED, SENSITIVE: subscription of the hub environment (02environments/hub).
+  # Same as subscription_id if hub and prod share one subscription.
+  hub_subscription_id = "00000000-0000-0000-0000-000000000000"
+
+  # REQUIRED, SENSITIVE: object ID of the Entra ID group created by 01bootstrap
+  # (its group_object_id output). Find it with:
+  #   az ad group show --group <group_display_name> --query id -o tsv
+  tf_contrib_group_id = "00000000-0000-0000-0000-000000000000"
+
+  # REQUIRED, SENSITIVE: Databricks account ID. Find it in the account console
+  # at https://accounts.azuredatabricks.net (click your user name, top right).
+  databricks_account_id = "00000000-0000-0000-0000-000000000000"
+
+  # CHANGE-ME: used to build resource names, e.g. rg-<location_code>-<environment>-<project>-...
+  location      = "eastus" # Azure region
+  location_code = "eus"    # short code for the region
+  environment   = "prd"
+  project       = "alphaai"
+  instance      = "001"
+
+  # CHANGE-ME: tags applied to every resource.
+  tags = {
+    owner       = "DevOps"
+    department  = "Data"
+    terraform   = "True"
+    repository  = "<your-repo-name>"
+    environment = "prd"
+    project     = "alphaai"
+    costcenter  = "000000"
+  }
+
+}
+
+remote_state {
+  backend = "azurerm"
+  config = {
+    # REQUIRED: the state backend created by 01bootstrap. Use the same values
+    # as subscription_id, resource_group_name, storage_account_name and
+    # container_names[0] in 01bootstrap/<env>/env.hcl.
+    subscription_id      = "00000000-0000-0000-0000-000000000000" # SENSITIVE
+    resource_group_name  = "rg-<region>-<env>-<project>-tfstate-001"
+    storage_account_name = "sttfstateexample001"
+    container_name       = "tfstate"
+    # get_parent_terragrunt_dir() is Terragrunt's purpose-built function for
+    # locating the stack root (no find_in_parent_folders, which throws when
+    # terragrunt.stack.hcl reads this file in isolation to build `values` —
+    # that eagerly evaluates this whole block even though it never uses the
+    # result). Deliberately not path_relative_to_include() for the unit half —
+    # that reintroduces ".terragrunt-stack" into the key; basename() doesn't.
+    key = "${basename(get_parent_terragrunt_dir())}/${basename(get_terragrunt_dir())}"
+    use_azuread_auth       = true
+    use_oidc               = true
+  }
+}
+
+generate "versions" {
+  path               = "versions.tf"
+  if_exists          = "overwrite"
+  contents           = file(find_in_parent_folders("versions.tf"))
+  disable_signature  = true
+}
+
+generate "globals" {
+  path      = "globals.tf"
+  if_exists = "overwrite"
+
+  contents = <<EOF
+variable "subscription_id" {
+  type = string
+}
+
+variable "tenant_id" {
+  type = string
+}
+
+variable "location" {
+  type = string
+}
+
+variable "environment" {
+  type = string
+}
+
+variable "location_code" {
+  type = string
+}
+
+variable "tags" {
+  type = map(string)
+}
+
+# Databricks variables — only required by units that use the Databricks provider.
+variable "databricks_account_id" {
+  type      = string
+  default   = null
+  sensitive = true
+}
+
+variable "databricks_workspace_url" {
+  type    = string
+  default = null
+}
+
+EOF
+}
+
+generate "providers" {
+  path      = "providers.tf"
+  if_exists = "overwrite"
+
+  contents = <<EOF
+
+provider "azurerm" {
+  subscription_id     = var.subscription_id
+  tenant_id           = var.tenant_id
+  storage_use_azuread = true
+  features {
+    resource_group {
+      prevent_deletion_if_contains_resources = true
+    }
+  }
+}
+
+provider "azapi" {
+  subscription_id = var.subscription_id
+  tenant_id       = var.tenant_id
+  use_oidc        = true
+}
+
+provider "databricks" {
+  alias           = "account"
+  host            = "https://accounts.azuredatabricks.net"
+  account_id      = var.databricks_account_id
+  azure_tenant_id = var.tenant_id
+}
+
+provider "databricks" {
+  alias           = "workspace"
+  host            = var.databricks_workspace_url
+  azure_tenant_id = var.tenant_id
+}
+
+provider "azuread" {
+  tenant_id = var.tenant_id
+}
+
+# Reads CLOUDFLARE_API_TOKEN from the environment — no credentials in code.
+provider "cloudflare" {}
+
+# REQUIRED: your Azure DevOps organisation URL. Reads the PAT from the
+# AZDO_PERSONAL_ACCESS_TOKEN environment variable - no credentials in code.
+provider "azuredevops" {
+  org_service_url = "https://dev.azure.com/<your-organisation>"
+}
+
+terraform {
+  backend "azurerm" {}
+}
+
+EOF
+}

@@ -1,0 +1,35 @@
+# Example file. Copy it to the same name without ".example" and adjust as needed.
+# No sensitive values here - it works as-is.
+
+# NSG rules for the "private-endpoints" subnet: allow HTTPS from the VNet,
+# deny everything else in and all internet out.
+
+- name: allow-inbound-https-from-vnet
+  priority: 300
+  direction: Inbound
+  access: Allow
+  protocol: Tcp
+  source_port_range: "*"
+  destination_port_range: "443"
+  source_address_prefix: VirtualNetwork
+  destination_address_prefix: VirtualNetwork
+
+- name: deny-inbound-internet
+  priority: 4080
+  direction: Inbound
+  access: Deny
+  protocol: "*"
+  source_port_range: "*"
+  destination_port_range: "*"
+  source_address_prefix: Internet
+  destination_address_prefix: "*"
+
+- name: deny-internet-egress
+  priority: 4090
+  direction: Outbound
+  access: Deny
+  protocol: "*"
+  source_port_range: "*"
+  destination_port_range: "*"
+  source_address_prefix: "*"
+  destination_address_prefix: Internet
