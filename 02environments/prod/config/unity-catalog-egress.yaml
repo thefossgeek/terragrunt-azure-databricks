@@ -1,6 +1,3 @@
-# Example file. Copy it to the same name without ".example" and adjust as needed.
-# No sensitive values here - it works as-is.
-
 # FQDNs serverless compute is allowed to reach (Databricks account network
 # policy egress allowlist). Empty list means no internet egress at all —
 # the most isolated posture. Add a destination by adding a line here — no

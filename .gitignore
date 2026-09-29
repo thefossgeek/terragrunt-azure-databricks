@@ -51,10 +51,12 @@ terraform.rc
 .terragrunt-cache/
 
 # Environment config (real values). Copy each *.example to the same name without
-# ".example" and fill in your own values.
+# ".example" and fill in your own values. Other files in config/ have no
+# sensitive values and are tracked as-is.
 02environments/**/root.hcl
 02environments/**/terragrunt.stack.hcl
-02environments/**/config/*.yaml
+02environments/**/config/databricks-access.yaml
+02environments/**/config/unity-catalog-groups.yaml
 
 # Editor swap files
 *.swp
