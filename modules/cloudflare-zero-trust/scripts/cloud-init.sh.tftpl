@@ -1,0 +1,50 @@
+#!/bin/bash
+set -euxo pipefail
+
+# Forward all DNS queries to Azure's recursive resolver, on a stub listener
+# bound to this VM's own private IP — not just 127.0.0.53 — so WARP clients
+# (pointed here via fallback_domains) can resolve private-endpoint hostnames
+# (Databricks, storage, Key Vault) to their private IPs.
+#
+# This uses systemd-resolved's built-in DNSStubListenerExtra (systemd >=
+# 247; Ubuntu 22.04 ships 249) instead of installing dnsmasq. Two reasons:
+# 1. This subnet's NSG is deliberately outbound-only to Cloudflare's edge
+#    (443/7844) plus platform DNS (53) — no port 80 — so `apt-get install`
+#    can never reach the Ubuntu archive mirror from here to begin with.
+# 2. Even with network access, the "dnsmasq" package has no installation
+#    candidate against this image's apt cache (only "dnsmasq-base" does,
+#    which doesn't ship the systemd unit) — a second, independent reason
+#    apt-get install -y dnsmasq always failed here, aborting the rest of
+#    this script under set -e before cloudflared was ever installed.
+mkdir -p /etc/systemd/resolved.conf.d
+cat > /etc/systemd/resolved.conf.d/azure-stub.conf <<DNSEOF
+[Resolve]
+DNS=168.63.129.16
+DNSStubListener=yes
+DNSStubListenerExtra=${connector_private_ip}
+DNSEOF
+systemctl restart systemd-resolved
+
+# cloudflared ships only as a GitHub release .deb, fetched over HTTPS — the
+# one outbound path this subnet's NSG actually allows. curl ships on the
+# base Ubuntu 22.04 Azure image, so no apt-get install is needed for it.
+curl -fsSL --output /tmp/cloudflared.deb https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
+dpkg -i /tmp/cloudflared.deb
+
+mkdir -p /etc/cloudflared
+
+cat > /etc/cloudflared/${tunnel_id}.json <<CREDEOF
+{"AccountTag":"${account_id}","TunnelSecret":"${tunnel_secret}","TunnelID":"${tunnel_id}"}
+CREDEOF
+chmod 600 /etc/cloudflared/${tunnel_id}.json
+
+cat > /etc/cloudflared/config.yml <<CFGEOF
+tunnel: ${tunnel_id}
+credentials-file: /etc/cloudflared/${tunnel_id}.json
+protocol: quic
+warp-routing:
+  enabled: true
+CFGEOF
+
+cloudflared service install
+systemctl enable --now cloudflared
