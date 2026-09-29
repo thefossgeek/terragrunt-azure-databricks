@@ -1,0 +1,40 @@
+name: Bug report
+description: Something doesn't work as expected
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Don't paste real subscription IDs, tenant IDs, emails or secrets. Replace them with placeholders.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you expect, and what happened instead? Include the error message.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. cd 02environments/prod
+        2. terragrunt stack run plan
+        3. ...
+    validations:
+      required: true
+  - type: input
+    id: component
+    attributes:
+      label: Module or unit
+      placeholder: e.g. modules/databricks, units/vnet, 01bootstrap
+    validations:
+      required: true
+  - type: textarea
+    id: versions
+    attributes:
+      label: Versions
+      description: Output of `terraform version` and `terragrunt --version`
+      render: text
+    validations:
+      required: true
