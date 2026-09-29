@@ -20,7 +20,7 @@ inputs = {
   tags                     = values.tags
 
   workspace_numeric_id = dependency.databricks.outputs.workspace_numeric_id
-  catalog_name          = dependency.unity_catalog.outputs.catalog_name
+  catalog_name         = dependency.unity_catalog.outputs.catalog_name
 
   workspace_permission_assignments = {
     (dependency.unity_catalog_groups.outputs.group_display_names["workspace_admins"]) = "ADMIN"

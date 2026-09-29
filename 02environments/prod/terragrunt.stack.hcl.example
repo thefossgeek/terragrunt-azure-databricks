@@ -40,9 +40,9 @@ unit "01resource-groups" {
 
   values = merge(local.common, {
     resource_groups = {
-       network       = { name = "rg-eus-prd-alphaai-network-001" }
-       databricks    = { name = "rg-eus-prd-alphaai-adb-001" }
-       monitoring    = { name = "rg-eus-prd-alphaai-monitoring-001" }
+      network    = { name = "rg-eus-prd-alphaai-network-001" }
+      databricks = { name = "rg-eus-prd-alphaai-adb-001" }
+      monitoring = { name = "rg-eus-prd-alphaai-monitoring-001" }
     }
   })
 }
@@ -72,7 +72,7 @@ unit "02vnet" {
     subnets = {
       private-endpoints = {
         address_prefixes                              = ["10.50.3.0/24"]
-        private_endpoint_network_policies              = "Disabled"
+        private_endpoint_network_policies             = "Disabled"
         private_link_service_network_policies_enabled = false
       }
       databricks-public = {

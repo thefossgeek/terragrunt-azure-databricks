@@ -68,17 +68,17 @@ remote_state {
     # that eagerly evaluates this whole block even though it never uses the
     # result). Deliberately not path_relative_to_include() for the unit half —
     # that reintroduces ".terragrunt-stack" into the key; basename() doesn't.
-    key = "${basename(get_parent_terragrunt_dir())}/${basename(get_terragrunt_dir())}"
-    use_azuread_auth       = true
-    use_oidc               = true
+    key              = "${basename(get_parent_terragrunt_dir())}/${basename(get_terragrunt_dir())}"
+    use_azuread_auth = true
+    use_oidc         = true
   }
 }
 
 generate "versions" {
-  path               = "versions.tf"
-  if_exists          = "overwrite"
-  contents           = file(find_in_parent_folders("versions.tf"))
-  disable_signature  = true
+  path              = "versions.tf"
+  if_exists         = "overwrite"
+  contents          = file(find_in_parent_folders("versions.tf"))
+  disable_signature = true
 }
 
 generate "globals" {

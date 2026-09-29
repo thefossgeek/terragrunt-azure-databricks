@@ -24,7 +24,7 @@ inputs = {
   tags                     = values.tags
 
   resource_group_name = dependency.resource_groups.outputs.resource_groups["databricks"].name
-  subnet_id            = dependency.vnet.outputs.subnets["private-endpoints"].id
+  subnet_id           = dependency.vnet.outputs.subnets["private-endpoints"].id
   dns_zone_ids = {
     blob = dependency.dns_zones.outputs.zones["storage-blob"].id
     dfs  = dependency.dns_zones.outputs.zones["storage-dfs"].id
@@ -35,19 +35,19 @@ inputs = {
   data_storage_account_name = dependency.databricks.outputs.storage_account_name
   key_vault_id              = dependency.databricks.outputs.key_vault_id
 
-  resource_suffix         = values.resource_suffix
-  metastore_name          = values.metastore_name
-  storage_container_name  = values.storage_container_name
-  data_storage_containers = values.data_storage_containers
-  catalog_name           = values.catalog_name
-  catalog_isolation_mode = values.catalog_isolation_mode
-  is_default_namespace   = values.is_default_namespace
-  force_destroy          = values.force_destroy
+  resource_suffix                  = values.resource_suffix
+  metastore_name                   = values.metastore_name
+  storage_container_name           = values.storage_container_name
+  data_storage_containers          = values.data_storage_containers
+  catalog_name                     = values.catalog_name
+  catalog_isolation_mode           = values.catalog_isolation_mode
+  is_default_namespace             = values.is_default_namespace
+  force_destroy                    = values.force_destroy
   storage_account_replication_type = values.storage_account_replication_type
 
   enable_workspace_hardening         = values.enable_workspace_hardening
   create_network_connectivity_config = values.create_network_connectivity_config
-  allowed_internet_destinations       = local.allowed_internet_destinations.destinations
+  allowed_internet_destinations      = local.allowed_internet_destinations.destinations
 
   owner_group_name = dependency.unity_catalog_groups.outputs.group_display_names["catalog_owners"]
 }

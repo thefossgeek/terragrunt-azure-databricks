@@ -14,13 +14,13 @@ locals {
 }
 
 inputs = {
-  subscription_id        = values.subscription_id
-  tenant_id               = values.tenant_id
-  databricks_account_id   = values.databricks_account_id
-  location                = values.location
-  location_code           = values.location_code
-  environment              = values.environment
-  tags                     = values.tags
+  subscription_id       = values.subscription_id
+  tenant_id             = values.tenant_id
+  databricks_account_id = values.databricks_account_id
+  location              = values.location
+  location_code         = values.location_code
+  environment           = values.environment
+  tags                  = values.tags
 
   name                              = values.name
   managed_resource_group_name       = values.managed_resource_group_name
