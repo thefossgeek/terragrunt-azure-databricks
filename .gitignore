@@ -45,3 +45,17 @@ terraform.rc
 
 # Bootstrap environment config (real values). Copy env.hcl.example -> env.hcl.
 01bootstrap/**/env.hcl
+
+# Terragrunt generated files and caches
+.terragrunt-stack/
+.terragrunt-cache/
+
+# Environment config (real values). Copy each *.example to the same name without
+# ".example" and fill in your own values.
+02environments/**/root.hcl
+02environments/**/terragrunt.stack.hcl
+02environments/**/config/*.yaml
+
+# Editor swap files
+*.swp
+*.swo

@@ -10,7 +10,7 @@ terraform {
 }
 
 locals {
-  allowed_internet_destinations = yamldecode(file("${dirname(find_in_parent_folders("root.hcl"))}/config/unity-catalog-allowed-internet-destinations.yaml"))
+  allowed_internet_destinations = yamldecode(file("${dirname(find_in_parent_folders("root.hcl"))}/config/unity-catalog-egress.yaml"))
 }
 
 inputs = {
