@@ -10,7 +10,7 @@ terraform {
 }
 
 locals {
-  groups = yamldecode(file("${dirname(find_in_parent_folders("root.hcl"))}/data/unity-catalog-groups.yaml"))
+  groups = yamldecode(file("${dirname(find_in_parent_folders("root.hcl"))}/config/unity-catalog-groups.yaml"))
 }
 
 inputs = {

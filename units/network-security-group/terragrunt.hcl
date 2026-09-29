@@ -10,8 +10,8 @@ terraform {
 }
 
 locals {
-  # Convention: rules/ always sits next to root.hcl at the stack root.
-  rules_dir = "${dirname(find_in_parent_folders("root.hcl"))}/rules"
+  # Convention: config/ always sits next to root.hcl at the stack root.
+  config_dir = "${dirname(find_in_parent_folders("root.hcl"))}/config"
 }
 
 inputs = {
@@ -28,12 +28,12 @@ inputs = {
   resource_group_name = dependency.resource_groups.outputs.resource_groups["network"].name
 
   # values.nsg_rules_files: map of subnet key (must match a key in the vnet
-  # dependency's `subnets` output) -> rules yaml filename under rules_dir.
+  # dependency's `subnets` output) -> rules yaml filename under config_dir.
   # One NSG per entry, associated with the like-named subnet.
   network_security_groups = {
     for key, rules_file in values.nsg_rules_files : key => {
       subnet_id      = dependency.vnet.outputs.subnets[key].id
-      security_rules = yamldecode(file("${local.rules_dir}/${rules_file}"))
+      security_rules = yamldecode(file("${local.config_dir}/${rules_file}"))
     }
   }
 }

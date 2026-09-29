@@ -10,7 +10,7 @@ terraform {
 }
 
 locals {
-  access = yamldecode(file("${dirname(find_in_parent_folders("root.hcl"))}/data/databricks-access.yaml"))
+  access = yamldecode(file("${dirname(find_in_parent_folders("root.hcl"))}/config/databricks-access.yaml"))
 }
 
 inputs = {
