@@ -21,65 +21,7 @@
 
 ## Prerequisites
 
-Have all of this ready before you start.
-
-### Tools
-
-- `terraform` >= 1.9
-- `terragrunt` >= 1.1.1
-- `az` CLI, signed in with `az login`
-
-### Azure subscription
-
-- **One subscription** works for both `hub` and `prod`. This is what the examples assume, because this repo was built and tested on a single free-tier subscription. Set `subscription_id` and `hub_subscription_id` to the same value.
-- **Two subscriptions** is better for production: put `hub` in a connectivity subscription and `prod` in its own. Set `hub_subscription_id` in `prod`'s `root.hcl` to the hub's ID.
-- Register these resource providers in each subscription:
-
-  ```bash
-  for p in Microsoft.Databricks Microsoft.Network Microsoft.Storage Microsoft.KeyVault \
-           Microsoft.OperationalInsights Microsoft.Compute Microsoft.Insights; do
-    az provider register --namespace $p
-  done
-  ```
-
-- Enough quota in your region for a small Linux VM (the Cloudflare connector). If the VM size isn't available, change `vm_size` in the `cloudflare-zero-trust` module.
-
-### Azure RBAC role (who runs Terraform)
-
-- `Owner` on the subscription, or `Contributor` plus `User Access Administrator`. The code creates role assignments, so `Contributor` alone fails.
-
-### Microsoft Entra ID roles (who runs Terraform)
-
-- `Groups Administrator`: creates the Entra ID groups and manages their members
-- `Application Administrator`: creates the Cloudflare Access app registration
-- `Privileged Role Administrator` or `Global Administrator`: grants admin consent for `Directory.Read.All` on that app registration
-
-### Databricks
-
-- An Azure Databricks **account** with you as **account admin**. Sign in at [accounts.azuredatabricks.net](https://accounts.azuredatabricks.net).
-- Your **Databricks account ID** (account console, click your user name, top right). It goes in `prod`'s `root.hcl`.
-
-### Cloudflare
-
-- A Cloudflare account with **Zero Trust** enabled (the free plan works) and a **team name** set (Zero Trust > Settings > Team name).
-- Your Cloudflare **account ID** (Account home > Account ID).
-- A Cloudflare **API token** with these Account permissions:
-  - `Zero Trust`: Edit
-  - `Access: Apps and Policies`: Edit
-  - `Access: Organizations, Identity Providers, and Groups`: Edit
-  - `Cloudflare Tunnel`: Edit
-
-  Export it before you deploy `hub`:
-
-  ```bash
-  export CLOUDFLARE_API_TOKEN=<your token>
-  ```
-
-- Users who will connect need the Cloudflare **WARP** client installed.
-
-### Other
-
-- An Entra ID user (UPN) for each person who goes in a reader, contributor or Unity Catalog group.
+Tools, Azure roles, Databricks and Cloudflare accounts you need before you start. Follow [docs/prerequisites.md](docs/prerequisites.md).
 
 ## Deploy the platform in 3 steps
 
@@ -101,38 +43,7 @@ Generate, plan and apply the `hub` stack first, then the `prod` stack (`prod` de
 
 There are three ways in. Only the workspace goes through Cloudflare.
 
-```mermaid
-flowchart LR
-    user(["User"])
-
-    subgraph internet["Public internet"]
-        acct["Databricks account console<br/>accounts.azuredatabricks.net"]
-        portal["Azure portal<br/>portal.azure.com"]
-        cf["Cloudflare Zero Trust<br/>WARP + Entra ID login"]
-    end
-
-    subgraph azure["Azure subscription"]
-        subgraph hub["Hub VNet"]
-            conn["Cloudflare connector VM<br/>cloudflared + DNS forwarder"]
-            dns["Private DNS resolver<br/>+ private DNS zones"]
-        end
-        subgraph prod["Prod VNet"]
-            pe["Private endpoint"]
-            ws["Databricks workspace<br/>no public access"]
-        end
-    end
-
-    user -- "1. Internet, Entra ID login" --> acct
-    user -- "3. Internet, Entra ID login" --> portal
-    user -- "2. WARP client" --> cf
-    cf -- "tunnel (outbound from VM)" --> conn
-    conn -- "resolve workspace name" --> dns
-    conn -- "VNet peering" --> pe
-    pe --> ws
-
-    style ws fill:#e8f5e9,stroke:#2e7d32
-    style cf fill:#fff3e0,stroke:#ef6c00
-```
+![Connectivity: how users reach Azure Databricks](docs/images/connectivity.svg)
 
 | # | What | How you connect |
 |---|---|---|

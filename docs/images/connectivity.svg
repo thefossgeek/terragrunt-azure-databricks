@@ -1,0 +1,115 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 760" width="1200" height="760" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" role="img" aria-labelledby="t d">
+  <title id="t">How users connect to Azure Databricks</title>
+  <desc id="d">The account console and Azure portal are reached over the internet. The workspace is reached only through Cloudflare Zero Trust, a tunnel to a connector VM in the hub VNet, VNet peering and a private endpoint in the prod VNet.</desc>
+  <defs>
+    <marker id="aBlue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="4.2" markerHeight="4.2" orient="auto"><path d="M0 0L10 5L0 10z" fill="#0969da"/></marker>
+    <marker id="aOrange" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="4.2" markerHeight="4.2" orient="auto"><path d="M0 0L10 5L0 10z" fill="#e06c00"/></marker>
+    <marker id="aGreen" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="4.2" markerHeight="4.2" orient="auto"><path d="M0 0L10 5L0 10z" fill="#1a7f37"/></marker>
+    <filter id="sh" x="-5%" y="-5%" width="110%" height="120%"><feDropShadow dx="0" dy="1" stdDeviation="2" flood-color="#1f2328" flood-opacity="0.12"/></filter>
+  </defs>
+
+  <rect width="1200" height="760" fill="#ffffff"/>
+
+  <!-- Title -->
+  <text x="40" y="38" font-size="22" font-weight="700" fill="#1f2328">Connectivity: how users reach Azure Databricks</text>
+
+  <!-- Zones -->
+  <rect x="250" y="60" width="330" height="560" rx="14" fill="#f6f8fa" stroke="#8c959f" stroke-width="1.5" stroke-dasharray="6 5"/>
+  <text x="270" y="88" font-size="12" font-weight="700" letter-spacing="1.5" fill="#57606a">PUBLIC INTERNET</text>
+
+  <rect x="620" y="60" width="540" height="560" rx="14" fill="#f0f7ff" stroke="#0078d4" stroke-width="1.5"/>
+  <text x="640" y="88" font-size="12" font-weight="700" letter-spacing="1.5" fill="#0078d4">AZURE SUBSCRIPTION</text>
+
+  <rect x="645" y="120" width="230" height="470" rx="10" fill="#ffffff" stroke="#0078d4" stroke-width="1.2" stroke-dasharray="5 4"/>
+  <text x="663" y="146" font-size="13" font-weight="700" fill="#1f2328">Hub VNet</text>
+  <text x="663" y="163" font-size="11" fill="#57606a">shared network services</text>
+
+  <rect x="940" y="120" width="205" height="470" rx="10" fill="#ffffff" stroke="#0078d4" stroke-width="1.2" stroke-dasharray="5 4"/>
+  <text x="958" y="146" font-size="13" font-weight="700" fill="#1f2328">Prod VNet</text>
+  <text x="958" y="163" font-size="11" fill="#57606a">spoke, Databricks</text>
+
+  <!-- Arrows (drawn first so nodes sit on top) -->
+  <g fill="none" stroke-width="2.5" stroke-linejoin="round">
+    <path d="M190 340 H225 V165 H276" stroke="#0969da" marker-end="url(#aBlue)"/>
+    <path d="M190 365 H276" stroke="#e06c00" marker-end="url(#aOrange)"/>
+    <path d="M190 390 H225 V545 H276" stroke="#0969da" marker-end="url(#aBlue)"/>
+    <path d="M550 365 H658" stroke="#e06c00" stroke-dasharray="7 4" marker-end="url(#aOrange)"/>
+    <path d="M860 365 H953" stroke="#1a7f37" marker-end="url(#aGreen)"/>
+    <path d="M760 410 V458" stroke="#1a7f37" marker-end="url(#aGreen)"/>
+    <path d="M1042 410 V458" stroke="#1a7f37" marker-end="url(#aGreen)"/>
+  </g>
+
+  <!-- Arrow labels -->
+  <g font-size="11" font-weight="600" text-anchor="middle">
+    <rect x="578" y="343" width="46" height="18" rx="9" fill="#fff" stroke="#e06c00"/><text x="601" y="356" fill="#b35000">tunnel</text>
+    <rect x="865" y="343" width="88" height="18" rx="9" fill="#fff" stroke="#1a7f37"/><text x="909" y="356" fill="#1a7f37">VNet peering</text>
+    <rect x="768" y="425" width="74" height="18" rx="9" fill="#fff" stroke="#1a7f37"/><text x="805" y="438" fill="#1a7f37">DNS lookup</text>
+    <rect x="1050" y="425" width="72" height="18" rx="9" fill="#fff" stroke="#1a7f37"/><text x="1086" y="438" fill="#1a7f37">private link</text>
+  </g>
+
+  <!-- Nodes -->
+  <g filter="url(#sh)">
+    <rect x="40" y="310" width="150" height="110" rx="10" fill="#ffffff" stroke="#57606a" stroke-width="1.5"/>
+    <rect x="280" y="120" width="270" height="90" rx="10" fill="#ffffff" stroke="#0969da" stroke-width="1.5"/>
+    <rect x="280" y="320" width="270" height="90" rx="10" fill="#fff8f0" stroke="#e06c00" stroke-width="1.5"/>
+    <rect x="280" y="500" width="270" height="90" rx="10" fill="#ffffff" stroke="#0969da" stroke-width="1.5"/>
+    <rect x="660" y="320" width="200" height="90" rx="10" fill="#ffffff" stroke="#e06c00" stroke-width="1.5"/>
+    <rect x="660" y="460" width="200" height="90" rx="10" fill="#ffffff" stroke="#1a7f37" stroke-width="1.5"/>
+    <rect x="955" y="320" width="175" height="90" rx="10" fill="#ffffff" stroke="#1a7f37" stroke-width="1.5"/>
+    <rect x="955" y="460" width="175" height="90" rx="10" fill="#f0fbf3" stroke="#1a7f37" stroke-width="2"/>
+  </g>
+
+  <!-- Node text -->
+  <g text-anchor="middle" fill="#1f2328">
+    <text x="115" y="358" font-size="16" font-weight="700">User</text>
+    <text x="115" y="378" font-size="12" fill="#57606a">browser</text>
+    <text x="115" y="394" font-size="12" fill="#57606a">+ WARP client</text>
+
+    <text x="415" y="157" font-size="15" font-weight="700">Databricks account console</text>
+    <text x="415" y="177" font-size="12" fill="#57606a">accounts.azuredatabricks.net</text>
+    <text x="415" y="195" font-size="12" fill="#57606a">Entra ID sign-in</text>
+
+    <text x="415" y="357" font-size="15" font-weight="700">Cloudflare Zero Trust</text>
+    <text x="415" y="377" font-size="12" fill="#57606a">Entra ID sign-in + access policy</text>
+    <text x="415" y="395" font-size="12" fill="#57606a">only group members get through</text>
+
+    <text x="415" y="537" font-size="15" font-weight="700">Azure portal</text>
+    <text x="415" y="557" font-size="12" fill="#57606a">portal.azure.com</text>
+    <text x="415" y="575" font-size="12" fill="#57606a">Entra ID sign-in</text>
+
+    <text x="760" y="357" font-size="15" font-weight="700">Connector VM</text>
+    <text x="760" y="377" font-size="12" fill="#57606a">cloudflared + DNS forwarder</text>
+    <text x="760" y="395" font-size="12" fill="#57606a">outbound-only tunnel</text>
+
+    <text x="760" y="497" font-size="15" font-weight="700">Private DNS</text>
+    <text x="760" y="517" font-size="12" fill="#57606a">resolver + private zones</text>
+    <text x="760" y="535" font-size="12" fill="#57606a">name → private IP</text>
+
+    <text x="1042" y="357" font-size="15" font-weight="700">Private endpoint</text>
+    <text x="1042" y="377" font-size="12" fill="#57606a">private IP in the</text>
+    <text x="1042" y="395" font-size="12" fill="#57606a">Prod VNet</text>
+
+    <text x="1042" y="497" font-size="15" font-weight="700">Databricks workspace</text>
+    <text x="1042" y="517" font-size="12" fill="#1a7f37" font-weight="600">public access disabled</text>
+    <text x="1042" y="535" font-size="12" fill="#57606a">private access only</text>
+  </g>
+
+  <!-- Step badges -->
+  <g font-size="12" font-weight="700" text-anchor="middle" fill="#ffffff">
+    <circle cx="225" cy="250" r="12" fill="#0969da"/><text x="225" y="254">1</text>
+    <circle cx="245" cy="365" r="12" fill="#e06c00"/><text x="245" y="369">2</text>
+    <circle cx="225" cy="470" r="12" fill="#0969da"/><text x="225" y="474">3</text>
+  </g>
+
+  <!-- Legend -->
+  <line x1="40" y1="650" x2="1160" y2="650" stroke="#d0d7de"/>
+  <g font-size="13" fill="#1f2328">
+    <line x1="40" y1="685" x2="80" y2="685" stroke="#0969da" stroke-width="2.5" marker-end="url(#aBlue)"/>
+    <text x="92" y="690"><tspan font-weight="700">1 and 3</tspan>  Internet: account console, Azure portal</text>
+    <line x1="430" y1="685" x2="470" y2="685" stroke="#e06c00" stroke-width="2.5" marker-end="url(#aOrange)"/>
+    <text x="482" y="690"><tspan font-weight="700">2</tspan>  Cloudflare: workspace access</text>
+    <line x1="760" y1="685" x2="800" y2="685" stroke="#1a7f37" stroke-width="2.5" marker-end="url(#aGreen)"/>
+    <text x="812" y="690">Private Azure network, no internet</text>
+  </g>
+  <text x="40" y="726" font-size="12" fill="#57606a">The workspace has no public endpoint. The only way in is through the Cloudflare tunnel.</text>
+</svg>
