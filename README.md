@@ -96,3 +96,61 @@ Copy every `.example` file without the `.example` suffix, then follow the commen
 ### Step 3: Deploy the stacks
 
 Generate, plan and apply the `hub` stack first, then the `prod` stack (`prod` depends on `hub`). Follow [docs/deploy.md](docs/deploy.md).
+
+### Step 4: Sign in
+
+There are three ways in. Only the workspace goes through Cloudflare.
+
+```mermaid
+flowchart LR
+    user(["User"])
+
+    subgraph internet["Public internet"]
+        acct["Databricks account console<br/>accounts.azuredatabricks.net"]
+        portal["Azure portal<br/>portal.azure.com"]
+        cf["Cloudflare Zero Trust<br/>WARP + Entra ID login"]
+    end
+
+    subgraph azure["Azure subscription"]
+        subgraph hub["Hub VNet"]
+            conn["Cloudflare connector VM<br/>cloudflared + DNS forwarder"]
+            dns["Private DNS resolver<br/>+ private DNS zones"]
+        end
+        subgraph prod["Prod VNet"]
+            pe["Private endpoint"]
+            ws["Databricks workspace<br/>no public access"]
+        end
+    end
+
+    user -- "1. Internet, Entra ID login" --> acct
+    user -- "3. Internet, Entra ID login" --> portal
+    user -- "2. WARP client" --> cf
+    cf -- "tunnel (outbound from VM)" --> conn
+    conn -- "resolve workspace name" --> dns
+    conn -- "VNet peering" --> pe
+    pe --> ws
+
+    style ws fill:#e8f5e9,stroke:#2e7d32
+    style cf fill:#fff3e0,stroke:#ef6c00
+```
+
+| # | What | How you connect |
+|---|---|---|
+| 1 | Databricks account console | Over the internet. Open [accounts.azuredatabricks.net](https://accounts.azuredatabricks.net) and sign in with Entra ID. |
+| 2 | Databricks workspace | Through Cloudflare only. The workspace has no public access. See below. |
+| 3 | Azure portal | Over the internet. Open [portal.azure.com](https://portal.azure.com) and sign in with Entra ID. |
+
+#### Sign in to the workspace
+
+1. Ask an admin to add you to the Entra ID group `zero-trust-private-access` (`access_group_name` in `hub`'s `terragrunt.stack.hcl`).
+2. Install the [Cloudflare WARP client](https://one.one.one.one).
+3. In WARP, go to Preferences > Account > Login to Cloudflare Zero Trust, enter your team name, and sign in with Entra ID.
+4. Get the workspace URL:
+
+   ```bash
+   az databricks workspace list --query "[].workspaceUrl" -o tsv
+   ```
+
+5. With WARP connected, open `https://<workspaceUrl>` in your browser.
+
+If the page doesn't load, check that WARP shows **Connected** and that you're in the group from step 1.
