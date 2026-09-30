@@ -19,7 +19,7 @@
   <a href="SECURITY.md"><img alt="Security" src="https://img.shields.io/badge/Security-policy-red?style=for-the-badge"></a>
 </p>
 
-## Getting started
+## Deploy the platform in 3 steps
 
 ### Step 1: Bootstrap the state backend
 
