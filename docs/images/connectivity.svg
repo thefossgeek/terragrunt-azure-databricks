@@ -67,15 +67,15 @@
 
     <text x="415" y="157" font-size="15" font-weight="700">Databricks account console</text>
     <text x="415" y="177" font-size="12" fill="#57606a">accounts.azuredatabricks.net</text>
-    <text x="415" y="195" font-size="12" fill="#57606a">Entra ID sign-in</text>
+    <text x="415" y="195" font-size="12" fill="#57606a">Entra ID sign-in + MFA</text>
 
     <text x="415" y="357" font-size="15" font-weight="700">Cloudflare Zero Trust</text>
-    <text x="415" y="377" font-size="12" fill="#57606a">Entra ID sign-in + access policy</text>
-    <text x="415" y="395" font-size="12" fill="#57606a">only group members get through</text>
+    <text x="415" y="377" font-size="12" fill="#57606a">Entra ID sign-in + MFA</text>
+    <text x="415" y="395" font-size="12" fill="#57606a">group members only</text>
 
     <text x="415" y="537" font-size="15" font-weight="700">Azure portal</text>
     <text x="415" y="557" font-size="12" fill="#57606a">portal.azure.com</text>
-    <text x="415" y="575" font-size="12" fill="#57606a">Entra ID sign-in</text>
+    <text x="415" y="575" font-size="12" fill="#57606a">Entra ID sign-in + MFA</text>
 
     <text x="760" y="357" font-size="15" font-weight="700">Connector VM</text>
     <text x="760" y="377" font-size="12" fill="#57606a">cloudflared + DNS forwarder</text>

@@ -56,6 +56,21 @@ Have all of this ready before you start.
 
 - Users who will connect need the Cloudflare **WARP** client installed.
 
+## Multi-factor authentication (MFA)
+
+All three ways in sign in with Entra ID, so MFA is enforced by Entra ID, not by this repo. Turn it on before you deploy. Pick one:
+
+- **Security defaults** (free, no licence): Entra admin center > Identity > Overview > Properties > Manage security defaults > **Enabled**. This requires MFA for every user in the tenant.
+- **Conditional Access** (needs Entra ID P1): create a policy that grants access only with **Require multifactor authentication** for these apps:
+
+  | Access | App in the policy |
+  |---|---|
+  | Azure portal | `Microsoft Azure Management` |
+  | Databricks account console and workspace | `AzureDatabricks` |
+  | Workspace through Cloudflare | `cloudflare-access-<resource_suffix>` (created by the `hub` deploy, so add it after `hub` is applied) |
+
+Don't use both. Security defaults turns off when you use Conditional Access.
+
 ## Other
 
 - An Entra ID user (UPN) for each person who goes in a reader, contributor or Unity Catalog group.

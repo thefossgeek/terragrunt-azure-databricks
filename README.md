@@ -21,7 +21,7 @@
 
 ## Prerequisites
 
-Tools, Azure roles, Databricks and Cloudflare accounts you need before you start. Follow [docs/prerequisites.md](docs/prerequisites.md).
+Tools, Azure roles, Databricks and Cloudflare accounts, and MFA setup you need before you start. Follow [docs/prerequisites.md](docs/prerequisites.md).
 
 ## Deploy the platform in 3 steps
 
@@ -47,15 +47,15 @@ There are three ways in. Only the workspace goes through Cloudflare.
 
 | # | What | How you connect |
 |---|---|---|
-| 1 | Databricks account console | Over the internet. Open [accounts.azuredatabricks.net](https://accounts.azuredatabricks.net) and sign in with Entra ID. |
+| 1 | Databricks account console | Over the internet. Open [accounts.azuredatabricks.net](https://accounts.azuredatabricks.net) and sign in with Entra ID and complete MFA. |
 | 2 | Databricks workspace | Through Cloudflare only. The workspace has no public access. See below. |
-| 3 | Azure portal | Over the internet. Open [portal.azure.com](https://portal.azure.com) and sign in with Entra ID. |
+| 3 | Azure portal | Over the internet. Open [portal.azure.com](https://portal.azure.com) and sign in with Entra ID and complete MFA. |
 
 #### Sign in to the workspace
 
 1. Ask an admin to add you to the Entra ID group `zero-trust-private-access` (`access_group_name` in `hub`'s `terragrunt.stack.hcl`).
 2. Install the [Cloudflare WARP client](https://one.one.one.one).
-3. In WARP, go to Preferences > Account > Login to Cloudflare Zero Trust, enter your team name, and sign in with Entra ID.
+3. In WARP, go to Preferences > Account > Login to Cloudflare Zero Trust, enter your team name, and sign in with Entra ID and complete MFA.
 4. Get the workspace URL:
 
    ```bash
