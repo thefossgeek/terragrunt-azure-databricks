@@ -21,23 +21,46 @@
 
 ## Prerequisites
 
-Tools, Azure roles, Databricks and Cloudflare accounts, and MFA setup you need before you start. Follow [docs/prerequisites.md](docs/prerequisites.md).
+Complete this checklist before you start. Details and commands are in [docs/prerequisites.md](docs/prerequisites.md).
 
-## Deploy the platform in 3 steps
+| Area | What you need |
+|---|---|
+| Tools | `terraform` >= 1.9, `terragrunt` >= 1.1.1, `az` CLI |
+| Azure subscription | One subscription (hub and prod together) or two. Resource providers registered. |
+| Azure RBAC | `Owner`, or `Contributor` + `User Access Administrator`, on the subscription |
+| Microsoft Entra ID | `Groups Administrator`, `Application Administrator`, and `Privileged Role Administrator` or `Global Administrator` |
+| MFA | Security defaults or a Conditional Access policy enabled in Entra ID |
+| Databricks | Account admin access and your Databricks account ID |
+| Cloudflare | Zero Trust account, team name, account ID and an API token |
+
+## Deploy the platform in 4 steps
+
+| Step | What it does | Guide |
+|---|---|---|
+| [1. Bootstrap](#step-1-bootstrap-the-state-backend) | Creates the storage account that holds Terraform state | [docs/bootstrap.md](docs/bootstrap.md) |
+| [2. Configure](#step-2-configure-the-environments) | Creates your config files from the `.example` templates | [docs/configure.md](docs/configure.md) |
+| [3. Deploy](#step-3-deploy-the-stacks) | Generates, plans and applies the `hub` and `prod` stacks | [docs/deploy.md](docs/deploy.md) |
+| [4. Sign in](#step-4-sign-in) | Connects users to the account console, workspace and Azure portal | below |
 
 ### Step 1: Bootstrap the state backend
 
-Terraform state for this repo is stored in an Azure storage account. If you don't have one, create it first with [01bootstrap](01bootstrap). Follow [docs/bootstrap.md](docs/bootstrap.md).
+Creates the Azure storage account that holds Terraform state for this repo.
 
-If you already have a storage account for Terraform state, skip this step.
+- **Do this if** you don't have a state storage account yet.
+- **Skip this if** you already have one.
+- **Guide:** [docs/bootstrap.md](docs/bootstrap.md)
 
 ### Step 2: Configure the environments
 
-Copy every `.example` file without the `.example` suffix, then follow the comments in each file to set your values (subscription ID, tenant ID, user emails, and so on). Follow [docs/configure.md](docs/configure.md).
+Copy each `.example` file to the same name without `.example`, then follow the comments in each file to set your values (subscription ID, tenant ID, user emails, and so on).
+
+- **Guide:** [docs/configure.md](docs/configure.md)
 
 ### Step 3: Deploy the stacks
 
-Generate, plan and apply the `hub` stack first, then the `prod` stack (`prod` depends on `hub`). Follow [docs/deploy.md](docs/deploy.md).
+Generate, plan and apply each stack. Deploy `hub` first, then `prod`, because `prod` depends on `hub`.
+
+- **Guide:** [docs/deploy.md](docs/deploy.md)
 
 ### Step 4: Sign in
 

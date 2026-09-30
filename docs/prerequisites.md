@@ -1,6 +1,8 @@
 # Prerequisites
 
-Have all of this ready before you start.
+Complete every section below before you start [bootstrap](bootstrap.md).
+
+**Contents:** [Tools](#tools) · [Azure subscription](#azure-subscription) · [Azure RBAC role](#azure-rbac-role-who-runs-terraform) · [Entra ID roles](#microsoft-entra-id-roles-who-runs-terraform) · [Databricks](#databricks) · [Cloudflare](#cloudflare) · [MFA](#multi-factor-authentication-mfa) · [Other](#other) · [Verify](#verify-your-setup)
 
 ## Tools
 
@@ -74,3 +76,17 @@ Don't use both. Security defaults turns off when you use Conditional Access.
 ## Other
 
 - An Entra ID user (UPN) for each person who goes in a reader, contributor or Unity Catalog group.
+
+## Verify your setup
+
+Run these. Each one should succeed.
+
+```bash
+terraform -version                 # 1.9 or later
+terragrunt --version               # 1.1.1 or later
+az account show -o table           # the subscription you plan to deploy into
+az provider show -n Microsoft.Databricks --query registrationState -o tsv   # Registered
+echo ${CLOUDFLARE_API_TOKEN:+set}  # prints "set" if the token is exported
+```
+
+Then go to [bootstrap](bootstrap.md).
